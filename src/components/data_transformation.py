@@ -1,30 +1,70 @@
 import sys
-from dataclasses import dataclass
-
-import numpy as np 
+import os
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OrdinalEncoder,StandardScaler
+import numpy as np
+from sklearn.model_selection import train_test_split
 
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import RobustScaler, FunctionTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import  StandardScaler
+
+from src.constant import *
 from src.exception import CustomException
 from src.logger import logging
-import os
-from src.utils import save_object
+from src.utils.main_utils import MainUtils
+from dataclasses import dataclass
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OrdinalEncoder
 
-## Data Transformation Confgi
 
 @dataclass
 class DataTransformationConfig:
-    preprocessor_obj_file_path=os.path.join('artifacts','preprocessor.pkl')
+    artifact_dir=os.path.join(artifact_folder)
+    transformed_train_file_path=os.path.join(artifact_dir, 'train.npy')
+    transformed_test_file_path=os.path.join(artifact_dir, 'test.npy') 
+    transformed_object_file_path=os.path.join( artifact_dir, 'preprocessor.pkl' )
+
+
 
 class DataTransformation:
-    def __init__(self):
-        self.data_transformation_config=DataTransformationConfig()
+    def __init__(self,
+                 feature_store_file_path):
+       
+        self.feature_store_file_path = feature_store_file_path
 
-    def get_data_transformation_object(self):
+        self.data_transformation_config = DataTransformationConfig()
+
+
+        self.utils =  MainUtils()
+        
+    
+    
+    @staticmethod
+    def get_data(feature_store_file_path:str) -> pd.DataFrame:
+        """
+        Method Name :   get_data
+        Description :   This method reads all the validated raw data from the feature_store_file_path and returns a pandas DataFrame containing the merged data. 
+        
+        Output      :   a pandas DataFrame containing the merged data 
+        On Failure  :   Write an exception log and then raise an exception
+        
+        Version     :   1.2
+        Revisions   :   moved setup to cloud
+        """
         try:
+            data = pd.read_csv(feature_store_file_path)
+            data.rename(columns={"Price": TARGET_COLUMN}, inplace=True)
+
+
+            return data
+        
+        except Exception as e:
+            raise CustomException(e,sys)
+        
+    def get_data_transformer_object(self):
+        try:
+
             logging.info('Data Transformation initiated')
             # Define which columns should be ordinal-encoded and which should be scaled
             categorical_cols = ['cut', 'color','clarity']
@@ -67,59 +107,63 @@ class DataTransformation:
             logging.info('Pipeline Completed')
 
         except Exception as e:
-            logging.info("Error in Data Trnasformation")
-            raise CustomException(e,sys)
+            raise CustomException(e, sys)
         
-    def initaite_data_transformation(self,train_path,test_path):
+
+             
+    def initiate_data_transformation(self) :
+        """
+            Method Name :   initiate_data_transformation
+            Description :   This method initiates the data transformation component for the pipeline 
+            
+            Output      :   data transformation artifact is created and returned 
+            On Failure  :   Write an exception log and then raise an exception
+            
+            Version     :   1.2
+            Revisions   :   moved setup to cloud
+        """
+
+        logging.info(
+            "Entered initiate_data_transformation method of Data_Transformation class"
+        )
+
         try:
-            # Reading train and test data
-            train_df = pd.read_csv(train_path)
-            test_df = pd.read_csv(test_path)
-
-            logging.info('Read train and test data completed')
-            logging.info(f'Train Dataframe Head : \n{train_df.head().to_string()}')
-            logging.info(f'Test Dataframe Head  : \n{test_df.head().to_string()}')
-
-            logging.info('Obtaining preprocessing object')
-
-            preprocessing_obj = self.get_data_transformation_object()
-
-            target_column_name = 'price'
+            dataframe = self.get_data(feature_store_file_path=self.feature_store_file_path)
+           
+            target_column_name = TARGET_COLUMN
             drop_columns = [target_column_name,'id']
 
-            ## Deviding Features into independent and dependent features
-            input_feature_train_df = train_df.drop(columns=drop_columns,axis=1)
-            target_feature_train_df=train_df[target_column_name]
-
-            input_feature_test_df=test_df.drop(columns=drop_columns,axis=1)
-            target_feature_test_df=test_df[target_column_name]
+            X = dataframe.drop(columns= drop_columns,axis=1)
+            y = dataframe[TARGET_COLUMN] 
             
-            ## Trnasformating using preprocessor obj
-            ## Apply the transformation
-            input_feature_train_arr=preprocessing_obj.fit_transform(input_feature_train_df)
-            input_feature_test_arr=preprocessing_obj.transform(input_feature_test_df)
+            
+            X_train, X_test, y_train, y_test = train_test_split(X,y, test_size = 0.2 )
 
-            logging.info("Applying preprocessing object on training and testing datasets.")
+
+            preprocessor = self.get_data_transformer_object()
+
+            X_train_scaled =  preprocessor.fit_transform(X_train)
+            X_test_scaled  =  preprocessor.transform(X_test)
+
             
 
-            train_arr = np.c_[input_feature_train_arr, np.array(target_feature_train_df)]
-            test_arr = np.c_[input_feature_test_arr, np.array(target_feature_test_df)]
-
-            save_object(
-
-                file_path=self.data_transformation_config.preprocessor_obj_file_path,
-                obj=preprocessing_obj
-
-            )
+            preprocessor_path = self.data_transformation_config.transformed_object_file_path
+            os.makedirs(os.path.dirname(preprocessor_path), exist_ok= True)
+            self.utils.save_object( file_path= preprocessor_path,
+                        obj= preprocessor)
+            
             logging.info('Preprocessor pickle file saved')
 
-            return (
-                train_arr,
-                test_arr,
-                self.data_transformation_config.preprocessor_obj_file_path,
-            )
-            
+            train_arr = np.c_[X_train_scaled, np.array(y_train) ]
+            test_arr = np.c_[ X_test_scaled, np.array(y_test) ]
+
+            return (train_arr, test_arr, preprocessor_path)
+        
+           
         except Exception as e:
             logging.info("Exception occured in the initiate_datatransformation")
+            raise CustomException(e, sys) from e
 
-            raise CustomException(e,sys)
+
+
+
