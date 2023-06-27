@@ -96,13 +96,13 @@ class PredictionPipeline:
             prediction_column_name : str = TARGET_COLUMN
             input_dataframe: pd.DataFrame = pd.read_csv(input_dataframe_path)
             
-            input_dataframe =  input_dataframe.drop(columns="Unnamed: 0") if "Unnamed: 0" in input_dataframe.columns else input_dataframe
+            input_dataframe =  input_dataframe.drop(columns="_id") if "_id" in input_dataframe.columns else input_dataframe
 
             predictions = self.predict(input_dataframe)
             input_dataframe[prediction_column_name] = [pred for pred in predictions]
-            target_column_mapping = {0:'bad', 1:'good'}
+            #target_column_mapping = {0:'bad', 1:'good'}
 
-            input_dataframe[prediction_column_name] = input_dataframe[prediction_column_name].map(target_column_mapping)
+            input_dataframe[prediction_column_name] = input_dataframe[prediction_column_name]#.map(target_column_mapping)
             
             os.makedirs( self.prediction_pipeline_config.prediction_output_dirname, exist_ok= True)
             input_dataframe.to_csv(self.prediction_pipeline_config.prediction_file_path, index= False)
