@@ -1,6 +1,6 @@
 ## Machine Learning Projects
 
-# 📄✏ Dimond Price detection from gemstone data
+# 📄✏ Dimond Price prediction from gemstone data
 
 
 
