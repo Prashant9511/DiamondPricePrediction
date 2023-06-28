@@ -31,7 +31,7 @@ Target variable:
 
 ## How to run this project in your local host from this repository?
 
-I have created files with numbers from 1 to 4 and you can follow along with me easily.
+I have created files with numbers from 1 to 7 and you can follow along with me easily.
 
 ## Step-1: fork and clone this repo in your VS Code 
 
@@ -54,7 +54,9 @@ conda command: python app.py
 ## Step-6:  open your local browser and run local host 
 
 http://localhost:5000   --1st
+
 http://localhost:5000/train  --2nd
+
 http://localhost:5000/predict  --3rd
 
 (Wait for every process to be done)
