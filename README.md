@@ -1,4 +1,4 @@
-# DiamondPricePredictionProject
+# Diamond Price Prediction Project
 
 ## Preview
 
